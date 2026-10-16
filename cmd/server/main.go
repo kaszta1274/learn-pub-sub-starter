@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -28,7 +26,6 @@ func main() {
 	}
 
 	gamelogic.PrintServerHelp()
-infinite:
 	for {
 		words := gamelogic.GetInput()
 
@@ -43,7 +40,7 @@ infinite:
 				IsPaused: true,
 			})
 			if err != nil {
-				log.Fatalf("could not publish pause JSON: %v", err)
+				log.Fatalf("could not publish pause: %v", err)
 			}
 
 		case "resume":
@@ -52,20 +49,15 @@ infinite:
 				IsPaused: false,
 			})
 			if err != nil {
-				log.Fatalf("could not publish resume JSON: %v", err)
+				log.Fatalf("could not publish resume: %v", err)
 			}
 
 		case "quit":
-			fmt.Println("Exiting the loop")
-			break infinite
+			fmt.Println("goodbye")
+			return
 
 		default:
-			fmt.Println("Unknown command")
+			fmt.Println("unknown command")
 		}
 	}
-
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	<-signalChan
-	fmt.Println("RabbitMQ connection closed.")
 }

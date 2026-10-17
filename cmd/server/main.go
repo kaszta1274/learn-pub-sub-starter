@@ -30,7 +30,7 @@ func main() {
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
 		routing.GameLogSlug+".*",
-		pubsub.Durable,
+		pubsub.SimpleQueueDurable,
 	)
 
 	gamelogic.PrintServerHelp()

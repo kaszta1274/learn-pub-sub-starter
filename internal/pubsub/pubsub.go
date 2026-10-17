@@ -3,6 +3,7 @@ package pubsub
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -10,8 +11,8 @@ import (
 type SimpleQueueType int
 
 const (
-	Durable SimpleQueueType = iota
-	Transient
+	SimpleQueueDurable SimpleQueueType = iota
+	SimpleQueueTransient
 )
 
 func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
@@ -44,12 +45,12 @@ func DeclareAndBind(
 	}
 
 	durable := false
-	if queueType == Durable {
+	if queueType == SimpleQueueDurable {
 		durable = true
 	}
 	autoDelete := false
 	exclusive := false
-	if queueType == Transient {
+	if queueType == SimpleQueueTransient {
 		autoDelete = true
 		exclusive = true
 	}
@@ -65,4 +66,39 @@ func DeclareAndBind(
 	}
 
 	return ch, queue, nil
+}
+
+func SubscribeJSON[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType,
+	handler func(T),
+) error {
+	ch, queue, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
+	if err != nil {
+		return fmt.Errorf("could not declare and bind queue: %v", err)
+	}
+
+	msgs, err := ch.Consume(queue.Name, "", false, false, false, false, nil)
+	if err != nil {
+		return fmt.Errorf("could not consume messages: %v", err)
+	}
+
+	go func() {
+		defer ch.Close()
+		for msg := range msgs {
+			var target T
+			if err := json.Unmarshal(msg.Body, &target); err != nil {
+				fmt.Printf("could not unmarshal message: %v\n", err)
+				continue
+			}
+
+			handler(target)
+			msg.Ack(false)
+		}
+	}()
+
+	return nil
 }

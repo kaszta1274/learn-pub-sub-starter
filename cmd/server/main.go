@@ -22,7 +22,7 @@ func main() {
 
 	publishCh, err := conn.Channel()
 	if err != nil {
-		log.Fatalf("could not create channel: %v", err)
+		log.Fatalf("could not a publishing create channel: %v", err)
 	}
 
 	_, _, err = pubsub.DeclareAndBind(

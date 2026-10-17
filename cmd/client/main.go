@@ -25,7 +25,13 @@ func main() {
 		log.Fatalf("could not get username: %v", err)
 	}
 
-	_, queue, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, routing.PauseKey+"."+userName, routing.PauseKey, pubsub.Transient)
+	_, queue, err := pubsub.DeclareAndBind(
+		conn,
+		routing.ExchangePerilDirect,
+		routing.PauseKey+"."+userName,
+		routing.PauseKey,
+		pubsub.Transient,
+	)
 	if err != nil {
 		log.Fatalf("could not subcribe to pause: %v", err)
 	}

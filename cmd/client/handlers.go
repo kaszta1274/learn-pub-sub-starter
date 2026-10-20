@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -47,20 +48,56 @@ func handlerMove(gs *gamelogic.GameState, ch *amqp.Channel) func(gamelogic.ArmyM
 	}
 }
 
-func handlerWar(gs *gamelogic.GameState) func(gamelogic.RecognitionOfWar) pubsub.AckType {
+func handlerWar(gs *gamelogic.GameState, ch *amqp.Channel) func(gamelogic.RecognitionOfWar) pubsub.AckType {
 	return func(rw gamelogic.RecognitionOfWar) pubsub.AckType {
 		defer fmt.Print("> ")
-		outcome, _, _ := gs.HandleWar(rw)
+		outcome, winner, loser := gs.HandleWar(rw)
 		switch outcome {
 		case gamelogic.WarOutcomeNotInvolved:
 			return pubsub.AckTypeNackRequeue
 		case gamelogic.WarOutcomeNoUnits:
 			return pubsub.AckTypeNackDiscard
-		case gamelogic.WarOutcomeOpponentWon, gamelogic.WarOutcomeYouWon, gamelogic.WarOutcomeDraw:
+		case gamelogic.WarOutcomeOpponentWon, gamelogic.WarOutcomeYouWon:
+			logMessage := fmt.Sprintf("%s won a war against %s", winner, loser)
+			err := publishGameLog(
+				ch,
+				routing.GameLog{
+					CurrentTime: time.Now().UTC(),
+					Message:     logMessage,
+					Username:    gs.GetUsername(),
+				},
+			)
+			if err != nil {
+				return pubsub.AckTypeNackRequeue
+			}
+			return pubsub.AckTypeAck
+		case gamelogic.WarOutcomeDraw:
+			logMessage := fmt.Sprintf("A war between %s and %s resulted in a draw", winner, loser)
+			err := publishGameLog(
+				ch,
+				routing.GameLog{
+					CurrentTime: time.Now().UTC(),
+					Message:     logMessage,
+					Username:    gs.GetUsername(),
+				},
+			)
+			if err != nil {
+				return pubsub.AckTypeNackRequeue
+			}
 			return pubsub.AckTypeAck
 		default:
 			fmt.Println("error: unknown war outcome")
 			return pubsub.AckTypeNackDiscard
 		}
 	}
+}
+
+func publishGameLog(ch *amqp.Channel, gl routing.GameLog) error {
+	err := pubsub.PublishGob(
+		ch,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug+"."+gl.Username,
+		gl,
+	)
+	return err
 }

@@ -25,13 +25,17 @@ func main() {
 		log.Fatalf("could not a publishing create channel: %v", err)
 	}
 
-	_, _, err = pubsub.DeclareAndBind(
+	err = pubsub.SubscribeGob(
 		conn,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
 		routing.GameLogSlug+".*",
 		pubsub.SimpleQueueDurable,
+		handlerGameLogs(),
 	)
+	if err != nil {
+		log.Fatalf("could not subscribe to game logs: %v", err)
+	}
 
 	gamelogic.PrintServerHelp()
 	for {
